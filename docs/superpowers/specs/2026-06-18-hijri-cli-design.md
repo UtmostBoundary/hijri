@@ -96,9 +96,14 @@ hijri events [<year>]      # list major events for the (Hijri) year, with Gregor
 ## 5. Conversion & accuracy rules
 
 - **Umm al-Qura only.** No fallback method.
-- **Out-of-range handling:** dates outside Umm al-Qura's supported range (~1924–2077 CE /
-  the corresponding Hijri years) produce a **clear error on stderr** stating the supported
-  range, and a **non-zero exit code**. There is no silent approximation.
+- **Range behavior (verified against ICU4X 2.2):** ICU4X's `Hijri::new_umm_al_qura()`
+  uses the official KACST tables where available and **extrapolates an astronomical
+  calculation beyond them** — it does *not* return an error for far-past/future dates
+  (e.g. it converts Gregorian 2200 and Hijri year 1200 without complaint). Therefore the
+  tool **always returns a computed value** rather than hard-erroring on range. For dates
+  far outside the modern era, the result is a calculated approximation; this caveat is
+  documented in `--help`/README. (The only true errors are *invalid* dates — e.g. month 13
+  or day 31 of a 29-day month — which ICU4X rejects and we surface per §8.)
 - **`convert` direction auto-detection:** a year ≥ 1700 is treated as Gregorian; otherwise
   Hijri. `--from <gregorian|hijri>` / `--to <gregorian|hijri>` override the guess.
 - **Input format:** ISO `YYYY-MM-DD`.
@@ -150,8 +155,9 @@ religious observance may differ by ±1 day."*
 
 ## 8. Error handling
 
-- Invalid dates, out-of-range input, and unparseable arguments produce a clear message on
-  **stderr** and a **non-zero exit code** (good Unix citizen).
+- Invalid dates (e.g. month 13, day 31 of a 29-day month) and unparseable arguments
+  produce a clear message on **stderr** and a **non-zero exit code** (good Unix citizen).
+  Far-past/future-but-*valid* dates are computed, not rejected (see §5).
 - Under `--json`, errors are emitted as a JSON error object (still non-zero exit).
 - Informational notes (e.g. the events caveat) go to **stderr** so stdout stays clean for
   piping.
