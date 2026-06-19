@@ -19,6 +19,7 @@ pub fn date_line(h: &HijriDate, g: &GregorianDate, lang: Lang) -> String {
 
 use crate::engine::hijri_to_gregorian;
 use crate::events::events_in_month;
+use crate::events::EVENTS;
 use crate::names::WEEKDAY_ABBR;
 
 /// Number of days in a Hijri month. ICU4X rejects an out-of-range day, so a
@@ -111,6 +112,40 @@ mod grid_tests {
     fn grid_brackets_today() {
         let g = month_grid(1448, 1, Some((1448, 1, 3)), Lang::En);
         assert!(g.contains("[3]"));
+    }
+}
+
+/// Render the events list for a Hijri year, each with its Gregorian date.
+/// Ends with the observance caveat line.
+pub fn events_list(year: i32, lang: Lang) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("Major events — {} AH\n", year));
+    for e in EVENTS.iter() {
+        let g = hijri_to_gregorian(year, e.month, e.day).unwrap();
+        out.push_str(&format!(
+            "  {:<18} {:>2} {:<16} {:04}-{:02}-{:02}\n",
+            e.name,
+            e.day,
+            month_name(e.month, lang),
+            g.year,
+            g.month,
+            g.day,
+        ));
+    }
+    out.push_str("\nNote: dates are Umm al-Qura calculated; local religious observance may differ by ±1 day.\n");
+    out
+}
+
+#[cfg(test)]
+mod events_list_tests {
+    use super::*;
+
+    #[test]
+    fn lists_all_events_with_caveat() {
+        let s = events_list(1448, Lang::En);
+        assert!(s.contains("Eid al-Adha"));
+        assert!(s.contains("Ramadan (start)"));
+        assert!(s.contains("may differ by ±1 day"));
     }
 }
 
