@@ -79,3 +79,30 @@ fn arabic_month_name() {
         .success()
         .stdout(contains("محرم"));
 }
+
+#[test]
+fn cal_out_of_range_year_errors_without_panicking() {
+    hijri()
+        .args(["cal", "1", "100000"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid date"));
+}
+
+#[test]
+fn events_out_of_range_year_errors_without_panicking() {
+    hijri()
+        .args(["events", "100000"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid date"));
+}
+
+#[test]
+fn convert_rejects_unknown_from_value() {
+    hijri()
+        .args(["convert", "1447-12-10", "--from", "hijriii"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid --from value"));
+}

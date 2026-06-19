@@ -109,11 +109,11 @@ pub fn run(cli: Cli) -> Result<(), String> {
                 return Err(format!("month must be 1..=12, got {}", m));
             }
             let today_tuple = Some((today_h.year, today_h.month, today_h.day));
-            print!("{}", render::month_grid(y, m, today_tuple, lang));
+            print!("{}", render::month_grid(y, m, today_tuple, lang).map_err(fmt_engine_err)?);
         }
         Command::Convert { date, from, to } => {
             let (y, m, d) = parse_ymd(&date)?;
-            let direction = resolve_direction(y, from.as_deref(), to.as_deref());
+            let direction = resolve_direction(y, from.as_deref(), to.as_deref())?;
             let (h, g) = match direction {
                 Direction::FromGregorian => both_from_gregorian(y, m, d),
                 Direction::FromHijri => both_from_hijri(y, m, d),
@@ -129,7 +129,7 @@ pub fn run(cli: Cli) -> Result<(), String> {
                     gregorian_to_hijri(ty, tm, td).map_err(fmt_engine_err)?.year
                 }
             };
-            print!("{}", render::events_list(y, lang));
+            print!("{}", render::events_list(y, lang).map_err(fmt_engine_err)?);
         }
     }
     Ok(())
@@ -137,16 +137,29 @@ pub fn run(cli: Cli) -> Result<(), String> {
 
 enum Direction { FromGregorian, FromHijri }
 
-/// Decide conversion direction. Explicit --from/--to win; otherwise a year
-/// >= 1700 is treated as Gregorian, else Hijri.
-fn resolve_direction(year: i32, from: Option<&str>, to: Option<&str>) -> Direction {
+/// Validate a `--from`/`--to` calendar name, returning an error on anything
+/// other than "gregorian" or "hijri".
+fn parse_calendar(which: &str, value: &str) -> Result<bool, String> {
+    match value {
+        "hijri" => Ok(true),
+        "gregorian" => Ok(false),
+        other => Err(format!(
+            "invalid --{} value '{}' (expected 'gregorian' or 'hijri')",
+            which, other
+        )),
+    }
+}
+
+/// Decide conversion direction. Explicit --from/--to win (and are validated);
+/// otherwise a year >= 1700 is treated as Gregorian, else Hijri.
+fn resolve_direction(year: i32, from: Option<&str>, to: Option<&str>) -> Result<Direction, String> {
     if let Some(f) = from {
-        return if f == "hijri" { Direction::FromHijri } else { Direction::FromGregorian };
+        return Ok(if parse_calendar("from", f)? { Direction::FromHijri } else { Direction::FromGregorian });
     }
     if let Some(t) = to {
-        return if t == "hijri" { Direction::FromGregorian } else { Direction::FromHijri };
+        return Ok(if parse_calendar("to", t)? { Direction::FromGregorian } else { Direction::FromHijri });
     }
-    if year >= 1700 { Direction::FromGregorian } else { Direction::FromHijri }
+    Ok(if year >= 1700 { Direction::FromGregorian } else { Direction::FromHijri })
 }
 
 fn fmt_engine_err(e: EngineError) -> String {
@@ -174,8 +187,14 @@ mod tests {
 
     #[test]
     fn direction_defaults_by_year() {
-        assert!(matches!(resolve_direction(2026, None, None), Direction::FromGregorian));
-        assert!(matches!(resolve_direction(1447, None, None), Direction::FromHijri));
-        assert!(matches!(resolve_direction(1447, Some("gregorian"), None), Direction::FromGregorian));
+        assert!(matches!(resolve_direction(2026, None, None).unwrap(), Direction::FromGregorian));
+        assert!(matches!(resolve_direction(1447, None, None).unwrap(), Direction::FromHijri));
+        assert!(matches!(resolve_direction(1447, Some("gregorian"), None).unwrap(), Direction::FromGregorian));
+    }
+
+    #[test]
+    fn direction_rejects_unknown_calendar() {
+        assert!(resolve_direction(1447, Some("hijriii"), None).is_err());
+        assert!(resolve_direction(2026, None, Some("nonsense")).is_err());
     }
 }
