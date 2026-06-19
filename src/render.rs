@@ -17,6 +17,103 @@ pub fn date_line(h: &HijriDate, g: &GregorianDate, lang: Lang) -> String {
     )
 }
 
+use crate::engine::hijri_to_gregorian;
+use crate::events::events_in_month;
+use crate::names::WEEKDAY_ABBR;
+
+/// Number of days in a Hijri month. ICU4X rejects an out-of-range day, so a
+/// successful round-trip of day 30 proves the month has 30 days; otherwise 29.
+fn days_in_hijri_month(year: i32, month: u8) -> u8 {
+    if hijri_to_gregorian(year, month, 30).is_ok() {
+        30
+    } else {
+        29
+    }
+}
+
+/// Weekday index (0 = Sunday) of the 1st of a Hijri month.
+fn first_weekday(year: i32, month: u8) -> u8 {
+    hijri_to_gregorian(year, month, 1).unwrap().weekday
+}
+
+/// Render a `cal`-style month grid for a Hijri month. `today` is an optional
+/// (year, month, day) to highlight with brackets.
+pub fn month_grid(
+    year: i32,
+    month: u8,
+    today: Option<(i32, u8, u8)>,
+    lang: Lang,
+) -> String {
+    let mut out = String::new();
+    let title = format!("{} {}", month_name(month, lang), year);
+    // Center the title over a 20-char week row.
+    let pad = (20usize.saturating_sub(title.chars().count())) / 2;
+    out.push_str(&" ".repeat(pad));
+    out.push_str(&title);
+    out.push('\n');
+    out.push_str(&WEEKDAY_ABBR.join(" "));
+    out.push('\n');
+
+    let lead = first_weekday(year, month) as usize;
+    let total = days_in_hijri_month(year, month);
+    let mut col = 0;
+    out.push_str(&"   ".repeat(lead));
+    col += lead;
+
+    for day in 1..=total {
+        let is_today = today == Some((year, month, day));
+        // Today is bracketed (`[3]`); other days are right-aligned in 2 columns.
+        if is_today {
+            out.push_str(&format!("[{}]", day));
+        } else {
+            out.push_str(&format!("{:>2}", day));
+        }
+        col += 1;
+        if col % 7 == 0 {
+            out.push('\n');
+        } else {
+            out.push(' ');
+        }
+    }
+    if col % 7 != 0 {
+        out.push('\n');
+    }
+
+    // Event legend.
+    let evs = events_in_month(month);
+    if !evs.is_empty() {
+        for e in evs {
+            out.push_str(&format!("  {} {} — {}\n", e.day, month_name(month, lang), e.name));
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod grid_tests {
+    use super::*;
+
+    #[test]
+    fn grid_has_title_and_weekday_header() {
+        let g = month_grid(1448, 1, None, Lang::En);
+        assert!(g.contains("Muḥarram 1448"));
+        assert!(g.contains("Su Mo Tu We Th Fr Sa"));
+    }
+
+    #[test]
+    fn grid_lists_events_for_muharram() {
+        let g = month_grid(1448, 1, None, Lang::En);
+        assert!(g.contains("Islamic New Year"));
+        assert!(g.contains("Ashura"));
+    }
+
+    #[test]
+    fn grid_brackets_today() {
+        let g = month_grid(1448, 1, Some((1448, 1, 3)), Lang::En);
+        assert!(g.contains("[3]"));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
