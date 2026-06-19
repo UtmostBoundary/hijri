@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 use icu_calendar::cal::Hijri;
 use icu_calendar::{Date, Iso};
