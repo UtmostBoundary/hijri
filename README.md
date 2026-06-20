@@ -6,6 +6,8 @@
 
 A friendly, `cal`-like command-line tool for Hijri (Islamic) dates. Convert between Gregorian and Hijri, browse month calendars, and list major Islamic events — all from your terminal.
 
+![hijri in action](assets/demo.gif)
+
 ---
 
 ## Install
