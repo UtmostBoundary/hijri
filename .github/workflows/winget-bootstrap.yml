@@ -1,0 +1,33 @@
+name: WinGet bootstrap (first submission)
+
+# One-shot helper to create the FIRST winget manifest for hijri using komac
+# (winget-releaser can only update packages that already exist). After the
+# first version is merged into microsoft/winget-pkgs, winget.yml handles all
+# future releases automatically and this file can be removed.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to submit, without the leading v (e.g. 0.3.0)"
+        required: true
+        default: "0.3.0"
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install komac
+        run: cargo install --locked komac
+
+      - name: Create and submit the new package
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          komac new UtmostBoundary.hijri \
+            --version "${{ inputs.version }}" \
+            --urls "https://github.com/UtmostBoundary/hijri/releases/download/v${{ inputs.version }}/hijri-x86_64-pc-windows-msvc.zip" \
+            --submit \
+            --yes
