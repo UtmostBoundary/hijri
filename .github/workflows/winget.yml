@@ -1,0 +1,31 @@
+name: Publish to WinGet
+
+# Submits/updates the hijri manifest in microsoft/winget-pkgs.
+# Runs automatically when a GitHub Release is published, and can be triggered
+# manually for an existing tag via the "Run workflow" button.
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish (e.g. v0.3.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit hijri to winget-pkgs
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: UtmostBoundary.hijri
+          # Match the portable Windows zip asset produced by cargo-dist.
+          installers-regex: '-pc-windows-msvc\.zip$'
+          release-tag: ${{ github.event.release.tag_name || inputs.tag }}
+          # Classic PAT (public_repo scope) for the fork at <user>/winget-pkgs.
+          token: ${{ secrets.WINGET_TOKEN }}
