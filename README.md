@@ -8,6 +8,16 @@ A friendly, `cal`-like command-line tool for Hijri (Islamic) dates. Convert betw
 
 ![hijri in action](assets/demo.gif)
 
+## Features
+
+- **`cal`-like calendar** — view any Hijri month or a whole year, today highlighted and Islamic event days marked.
+- **Two-way conversion** — Gregorian ↔ Hijri, with the direction auto-detected.
+- **Events** — Ramadan, both Eids, Ashura, Mawlid, and the Islamic New Year, with their Gregorian dates.
+- **Accurate & honest** — Umm al-Qura (the official Saudi civil calendar) via Unicode's ICU4X, with a clear take on moon-sighting limits.
+- **Scriptable** — `--json` output and proper exit codes for piping.
+- **Localized** — English transliteration or Arabic script (`--lang ar`).
+- **Single static binary** — install from Homebrew, Cargo, or a prebuilt release. No runtime dependencies.
+
 ---
 
 ## Install
@@ -18,27 +28,27 @@ A friendly, `cal`-like command-line tool for Hijri (Islamic) dates. Convert betw
 brew install UtmostBoundary/tap/hijri
 ```
 
-> Note: available once a release is published. Until then, build from source (see below).
-
 ### Cargo
-
-Once published to crates.io:
 
 ```
 cargo install hijri
 ```
 
-Or install directly from the repository at any time:
+Or install the latest commit straight from the repository:
 
 ```
 cargo install --git https://github.com/UtmostBoundary/hijri
 ```
 
-### GitHub Releases
+### Prebuilt binaries
 
-Prebuilt binaries (`.tar.gz`, `.deb`) will be available on the [Releases page](https://github.com/UtmostBoundary/hijri/releases) once a release is tagged.
+Download a binary for macOS, Linux, or Windows (`.tar.xz`, `.deb`, `.zip`) from the [Releases page](https://github.com/UtmostBoundary/hijri/releases), or use the one-line installer:
 
-### Building from source
+```
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/UtmostBoundary/hijri/releases/latest/download/hijri-installer.sh | sh
+```
+
+### From source
 
 ```
 git clone https://github.com/UtmostBoundary/hijri.git
@@ -200,7 +210,19 @@ The tool always returns a computed value and does not hard-error on dates outsid
 
 ## How it works
 
-`hijri` is written in Rust and built on the [ICU4X](https://github.com/unicode-org/icu4x) `icu_calendar` crate, which provides a well-tested implementation of the Umm al-Qura calendar. Date arithmetic, month-length calculations, and conversions are all delegated to ICU4X.
+`hijri` is written in Rust and built on the [ICU4X](https://github.com/unicode-org/icu4x) `icu_calendar` crate, which provides a well-tested implementation of the Umm al-Qura calendar. Date arithmetic, month-length calculations, and conversions are all delegated to ICU4X. The code is split into small, focused modules (engine, names, events, render, JSON, CLI) and covered by an end-to-end test suite.
+
+---
+
+## Development
+
+```
+cargo test                                   # run the test suite
+cargo clippy --all-targets -- -D warnings    # lint
+cargo run -- cal                             # run locally
+```
+
+Contributions and bug reports are welcome — please open an [issue](https://github.com/UtmostBoundary/hijri/issues) or pull request.
 
 ---
 
