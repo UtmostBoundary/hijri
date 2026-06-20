@@ -6,6 +6,9 @@ description = "A friendly cal-like command-line tool for Hijri (Islamic) dates (
 license = "MIT"
 repository = "https://github.com/UtmostBoundary/hijri"
 homepage = "https://github.com/UtmostBoundary/hijri"
+readme = "README.md"
+keywords = ["hijri", "islamic", "calendar", "umm-al-qura", "cli"]
+categories = ["command-line-utilities", "date-and-time"]
 
 [[bin]]
 name = "hijri"

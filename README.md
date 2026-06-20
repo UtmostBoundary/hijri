@@ -1,5 +1,9 @@
 # hijri
 
+[![Crates.io](https://img.shields.io/crates/v/hijri.svg)](https://crates.io/crates/hijri)
+[![Release](https://img.shields.io/github/v/release/UtmostBoundary/hijri)](https://github.com/UtmostBoundary/hijri/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A friendly, `cal`-like command-line tool for Hijri (Islamic) dates. Convert between Gregorian and Hijri, browse month calendars, and list major Islamic events — all from your terminal.
 
 ---
