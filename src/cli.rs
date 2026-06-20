@@ -1,14 +1,24 @@
 use crate::engine::{gregorian_to_hijri, hijri_to_gregorian, EngineError, GregorianDate, HijriDate};
-use crate::names::Lang;
+use crate::names::{self, Lang};
 use crate::{json, render};
 use clap::{Parser, Subcommand};
+use std::io::IsTerminal;
 use time::OffsetDateTime;
 
 #[derive(Parser)]
-#[command(name = "hijri", version, about = "Hijri (Islamic) calendar in your terminal")]
+#[command(
+    name = "hijri",
+    version,
+    about = "Hijri (Islamic) calendar in your terminal",
+    args_conflicts_with_subcommands = true
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Shortcut: a bare Hijri year (e.g. `hijri 1448`) shows that whole year;
+    /// a bare month name (e.g. `hijri ramadan`) shows that month of this year.
+    pub target: Option<String>,
 
     /// Conversion method (only umm-al-qura is supported).
     #[arg(long, global = true, default_value = "umm-al-qura")]
@@ -21,14 +31,22 @@ pub struct Cli {
     /// Name language: en (transliteration) or ar (Arabic script).
     #[arg(long, global = true, default_value = "en")]
     pub lang: String,
+
+    /// Disable colored output (also auto-disabled when not writing to a terminal).
+    #[arg(long, global = true)]
+    pub no_color: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Command {
     /// Show today's Hijri date (default when no subcommand).
     Today,
-    /// Show a Hijri month grid (defaults to the current Hijri month).
-    Cal { month: Option<u8>, year: Option<i32> },
+    /// Show a Hijri calendar. No args: current month. One arg: a year (whole-year
+    /// grid) or a month name (that month this year). Two args: <month> <year>.
+    Cal {
+        first: Option<String>,
+        second: Option<String>,
+    },
     /// Convert a date (Gregorian <-> Hijri, auto-detected).
     Convert {
         date: String,
@@ -87,29 +105,76 @@ fn print_date(h: &HijriDate, g: &GregorianDate, lang: Lang, as_json: bool) {
     }
 }
 
+/// Parse a month given as a name (e.g. "ramadan", "muh") or a 1..=12 number.
+fn parse_month(s: &str) -> Result<u8, String> {
+    if let Some(m) = names::month_number(s) {
+        return Ok(m);
+    }
+    match s.parse::<u8>() {
+        Ok(m) if (1..=12).contains(&m) => Ok(m),
+        _ => Err(format!("'{}' is not a month name or number (1-12)", s)),
+    }
+}
+
+/// Render a calendar, mirroring `cal`'s argument rules:
+/// - no args        → current Hijri month
+/// - one number     → whole-year grid for that Hijri year
+/// - one month name → that month of the current Hijri year
+/// - two args       → <month (name or number)> <year>
+fn show_calendar(
+    first: Option<&str>,
+    second: Option<&str>,
+    lang: Lang,
+    color: bool,
+) -> Result<(), String> {
+    let (ty, tm, td) = today_gregorian();
+    let today_h = gregorian_to_hijri(ty, tm, td).map_err(fmt_engine_err)?;
+    let today_tuple = Some((today_h.year, today_h.month, today_h.day));
+
+    let output = match (first, second) {
+        (None, _) => render::month_grid(today_h.year, today_h.month, today_tuple, lang, color),
+        (Some(a), None) => {
+            if let Some(m) = names::month_number(a) {
+                render::month_grid(today_h.year, m, today_tuple, lang, color)
+            } else if let Ok(y) = a.parse::<i32>() {
+                render::year_grid(y, today_tuple, lang, color)
+            } else {
+                return Err(format!("'{}' is not a month name or year", a));
+            }
+        }
+        (Some(a), Some(b)) => {
+            let m = parse_month(a)?;
+            let y = b.parse::<i32>().map_err(|_| format!("invalid year '{}'", b))?;
+            render::month_grid(y, m, today_tuple, lang, color)
+        }
+    };
+    print!("{}", output.map_err(fmt_engine_err)?);
+    Ok(())
+}
+
 /// Run the CLI. Returns Err(message) for any user-facing failure.
 pub fn run(cli: Cli) -> Result<(), String> {
     if cli.method != "umm-al-qura" {
         return Err(format!("unsupported method '{}' (only 'umm-al-qura')", cli.method));
     }
     let lang = parse_lang(&cli.lang);
+    let color = !cli.no_color && std::io::stdout().is_terminal();
 
-    match cli.command.unwrap_or(Command::Today) {
+    // A bare positional (`hijri 1448` / `hijri ramadan`) is shorthand for `cal`.
+    let command = match (cli.command, cli.target) {
+        (Some(cmd), _) => cmd,
+        (None, Some(t)) => Command::Cal { first: Some(t), second: None },
+        (None, None) => Command::Today,
+    };
+
+    match command {
         Command::Today => {
             let (y, m, d) = today_gregorian();
             let (h, g) = both_from_gregorian(y, m, d).map_err(fmt_engine_err)?;
             print_date(&h, &g, lang, cli.json);
         }
-        Command::Cal { month, year } => {
-            let (ty, tm, td) = today_gregorian();
-            let today_h = gregorian_to_hijri(ty, tm, td).map_err(fmt_engine_err)?;
-            let y = year.unwrap_or(today_h.year);
-            let m = month.unwrap_or(today_h.month);
-            if !(1..=12).contains(&m) {
-                return Err(format!("month must be 1..=12, got {}", m));
-            }
-            let today_tuple = Some((today_h.year, today_h.month, today_h.day));
-            print!("{}", render::month_grid(y, m, today_tuple, lang).map_err(fmt_engine_err)?);
+        Command::Cal { first, second } => {
+            show_calendar(first.as_deref(), second.as_deref(), lang, color)?;
         }
         Command::Convert { date, from, to } => {
             let (y, m, d) = parse_ymd(&date)?;

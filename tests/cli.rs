@@ -106,3 +106,64 @@ fn convert_rejects_unknown_from_value() {
         .failure()
         .stderr(contains("invalid --from value"));
 }
+
+#[test]
+fn cal_single_year_shows_whole_year() {
+    // One numeric arg = whole-year grid (like `cal 2026`): header + all months.
+    hijri()
+        .args(["cal", "1448"])
+        .assert()
+        .success()
+        .stdout(contains("1448"))
+        .stdout(contains("Muḥarram"))
+        .stdout(contains("Ramaḍān"))
+        .stdout(contains("Dhū al-Ḥijja"));
+}
+
+#[test]
+fn bare_year_is_shorthand_for_cal_year() {
+    hijri()
+        .args(["1448"])
+        .assert()
+        .success()
+        .stdout(contains("Muḥarram"))
+        .stdout(contains("Ramaḍān"));
+}
+
+#[test]
+fn cal_accepts_month_name_with_year() {
+    hijri()
+        .args(["cal", "ramadan", "1448"])
+        .assert()
+        .success()
+        .stdout(contains("Ramaḍān 1448"))
+        .stdout(contains("Su Mo Tu We Th Fr Sa"));
+}
+
+#[test]
+fn bare_month_name_shows_that_month() {
+    hijri()
+        .args(["rajab"])
+        .assert()
+        .success()
+        .stdout(contains("Rajab"));
+}
+
+#[test]
+fn cal_month_number_and_year_still_works() {
+    // Backward compatibility: two numbers = <month> <year>.
+    hijri()
+        .args(["cal", "9", "1448"])
+        .assert()
+        .success()
+        .stdout(contains("Ramaḍān 1448"));
+}
+
+#[test]
+fn cal_ambiguous_month_name_errors() {
+    hijri()
+        .args(["cal", "rabi", "1448"])
+        .assert()
+        .failure()
+        .stderr(contains("not a month name or number"));
+}

@@ -57,21 +57,42 @@ $ hijri today
 3 Muḥarram 1448 AH  (Thu, 2026-06-18)
 ```
 
-### Month calendar
+### Calendar
 
-`hijri cal [<month> <year>]` displays a Hijri month grid. Month and year are Hijri (e.g. `hijri cal 9 1447` for Ramadan 1447). Without arguments it shows the current Hijri month. Today's date is bracketed. Islamic events in the month are listed below the grid.
+`hijri cal` follows the same argument rules as the classic `cal` command:
+
+| Command | Shows |
+|---------|-------|
+| `hijri cal` | the current Hijri month |
+| `hijri cal 1448` | the whole Hijri **year** 1448 (12-month grid) |
+| `hijri cal 9 1448` | a single month — `<month> <year>` |
+| `hijri cal ramadan 1448` | a month by **name** (also `muharram`, `rajab`, `muh`, …) |
+| `hijri ramadan` | that month of the current Hijri year (bare shorthand) |
+| `hijri 1448` | the whole year (bare shorthand) |
+
+Today's date is highlighted (reverse-video) when writing to a terminal; use `--no-color` (or pipe the output) to disable. In a single month, Islamic events are listed below the grid.
 
 ```
-$ hijri cal 1 1448
-   Muḥarram 1448
+$ hijri cal 9 1448
+    Ramaḍān 1448
 Su Mo Tu We Th Fr Sa
-       1  2 [3]  4  5
- 6  7  8  9 10 11 12
-13 14 15 16 17 18 19
-20 21 22 23 24 25 26
-27 28 29 
-  1 Muḥarram — Islamic New Year
-  10 Muḥarram — Ashura
+    1  2  3  4  5  6
+ 7  8  9 10 11 12 13
+14 15 16 17 18 19 20
+21 22 23 24 25 26 27
+28 29
+  1 Ramaḍān — Ramadan (start)
+```
+
+```
+$ hijri cal 1448
+                              1448
+
+   Muḥarram 1448           Ṣafar 1448       Rabīʿ al-Awwal 1448
+Su Mo Tu We Th Fr Sa  Su Mo Tu We Th Fr Sa  Su Mo Tu We Th Fr Sa
+       1  2  3  4  5            1  2  3  4                  1  2
+ 6  7  8  9 10 11 12   5  6  7  8  9 10 11   3  4  5  6  7  8  9
+...
 ```
 
 ### Date conversion
@@ -113,6 +134,7 @@ Note: dates are Umm al-Qura calculated; local religious observance may differ by
 | `--method umm-al-qura` | Calculation method (only supported value; reserved for a future online source). |
 | `--json` | Output structured JSON. |
 | `--lang <en\|ar>` | Month names in English or Arabic. |
+| `--no-color` | Disable colored output (also auto-disabled when not writing to a terminal). |
 
 **Arabic month names:**
 
