@@ -29,5 +29,4 @@ jobs:
           komac new UtmostBoundary.hijri \
             --version "${{ inputs.version }}" \
             --urls "https://github.com/UtmostBoundary/hijri/releases/download/v${{ inputs.version }}/hijri-x86_64-pc-windows-msvc.zip" \
-            --submit \
-            --yes
+            --submit
