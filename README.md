@@ -70,13 +70,13 @@ $ hijri today
 | `hijri ramadan` | that month of the current Hijri year (bare shorthand) |
 | `hijri 1448` | the whole year (bare shorthand) |
 
-Today's date is highlighted (reverse-video) when writing to a terminal; use `--no-color` (or pipe the output) to disable. In a single month, Islamic events are listed below the grid.
+Today's date is highlighted (reverse-video) when writing to a terminal; use `--no-color` (or pipe the output) to disable. In a single month, Islamic event days are marked with a `*` and listed in full below the grid.
 
 ```
 $ hijri cal 9 1448
     Ramaḍān 1448
 Su Mo Tu We Th Fr Sa
-    1  2  3  4  5  6
+    1* 2  3  4  5  6
  7  8  9 10 11 12 13
 14 15 16 17 18 19 20
 21 22 23 24 25 26 27

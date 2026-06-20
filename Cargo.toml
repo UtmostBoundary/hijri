@@ -1,6 +1,6 @@
 [package]
 name = "hijri"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "A friendly cal-like command-line tool for Hijri (Islamic) dates (Umm al-Qura)"
 license = "MIT"

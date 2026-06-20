@@ -76,43 +76,64 @@ fn pad_to(s: &str, width: usize) -> String {
 
 /// Build the lines of one month block: a centered title, the weekday header,
 /// and the week rows — each padded to `COLW` visible columns. "Today" is
-/// reverse-video when `color` is true. No event legend (callers add that).
+/// reverse-video when `color` is true. When `mark_events` is true, an event day
+/// is followed by a `*` in the gap to the next cell (width-preserving), so the
+/// columns stay aligned; the year overview passes false to stay compact. No
+/// event legend (callers add that).
 fn month_block(
     year: i32,
     month: u8,
     today: Option<(i32, u8, u8)>,
     lang: Lang,
     color: bool,
+    mark_events: bool,
+    with_year: bool,
 ) -> Result<Vec<String>, EngineError> {
     let lead = first_weekday(year, month)? as usize;
     let total = days_in_hijri_month(year, month);
+    let events = events_in_month(month);
+    let is_event = |day: u8| mark_events && events.iter().any(|e| e.day == day);
 
     let mut lines = Vec::new();
 
-    let title = format!("{} {}", month_name(month, lang), year);
+    // The single-month view labels each block with "Month Year"; the year view
+    // shows just the month name (the year is in the page header), keeping every
+    // title within the column width even for long names like "Jumādā al-Ākhira".
+    let title = if with_year {
+        format!("{} {}", month_name(month, lang), year)
+    } else {
+        month_name(month, lang).to_string()
+    };
     let pad = COLW.saturating_sub(title.chars().count()) / 2;
     lines.push(pad_to(&format!("{}{}", " ".repeat(pad), title), COLW));
     lines.push(WEEKDAY_ABBR.join(" "));
 
-    let mut week: Vec<String> = vec!["  ".to_string(); lead];
-    for day in 1..=total {
-        let is_today = today == Some((year, month, day));
-        let cell = if is_today && color {
-            format!("{}{:>2}{}", REV, day, RST)
-        } else {
-            format!("{:>2}", day)
-        };
-        week.push(cell);
-        if week.len() == 7 {
-            lines.push(pad_to(&week.join(" "), COLW));
-            week.clear();
-        }
+    // Each week is a 7-slot row; None = an empty leading/trailing cell.
+    let mut slots: Vec<Option<u8>> = vec![None; lead];
+    slots.extend((1..=total).map(Some));
+    while !slots.len().is_multiple_of(7) {
+        slots.push(None);
     }
-    if !week.is_empty() {
-        while week.len() < 7 {
-            week.push("  ".to_string());
+
+    for week in slots.chunks(7) {
+        let mut row = String::new();
+        for (i, slot) in week.iter().enumerate() {
+            match slot {
+                Some(day) if today == Some((year, month, *day)) && color => {
+                    row.push_str(&format!("{}{:>2}{}", REV, day, RST));
+                }
+                Some(day) => row.push_str(&format!("{:>2}", day)),
+                None => row.push_str("  "),
+            }
+            // Separator after this cell: '*' marks an event day, else a space.
+            let event_here = matches!(slot, Some(d) if is_event(*d));
+            if i < 6 {
+                row.push(if event_here { '*' } else { ' ' });
+            } else if event_here {
+                row.push('*');
+            }
         }
-        lines.push(pad_to(&week.join(" "), COLW));
+        lines.push(pad_to(&row, COLW));
     }
 
     Ok(lines)
@@ -128,7 +149,7 @@ pub fn month_grid(
     lang: Lang,
     color: bool,
 ) -> Result<String, EngineError> {
-    let block = month_block(year, month, today, lang, color)?;
+    let block = month_block(year, month, today, lang, color, true, true)?;
     let mut out: String = block
         .iter()
         .map(|l| l.trim_end())
@@ -167,7 +188,7 @@ pub fn year_grid(
         let blocks: Vec<Vec<String>> = (0..3)
             .map(|c| {
                 let month = (row * 3 + c + 1) as u8;
-                month_block(year, month, today, lang, color)
+                month_block(year, month, today, lang, color, false, false)
             })
             .collect::<Result<_, _>>()?;
 
@@ -219,10 +240,28 @@ mod grid_tests {
     #[test]
     fn grid_week_rows_stay_aligned_with_highlight() {
         // The reverse-video "today" cell must not change the visible width of
-        // its week row, so the calendar columns stay aligned.
-        let block = month_block(1448, 1, Some((1448, 1, 3)), Lang::En, true).unwrap();
+        // its week row, so the calendar columns stay aligned (year-grid path,
+        // mark_events = false, keeps every line exactly COLW wide).
+        let block = month_block(1448, 1, Some((1448, 1, 3)), Lang::En, true, false, true).unwrap();
         for line in &block {
             assert_eq!(display_width(line), COLW, "line not {COLW} wide: {line:?}");
+        }
+    }
+
+    #[test]
+    fn single_month_marks_event_days_with_star() {
+        // Muḥarram has events on day 1 and day 10; both should get a `*` marker
+        // in the gap after the day, and mid-row markers must not widen the row.
+        let g = month_grid(1448, 1, None, Lang::En, false).unwrap();
+        assert!(g.contains("10*"), "expected '10*' marker, got:\n{g}");
+    }
+
+    #[test]
+    fn year_grid_does_not_mark_events() {
+        let y = year_grid(1448, None, Lang::En, false).unwrap();
+        assert!(!y.contains("10*"));
+        for line in y.lines() {
+            assert!(display_width(line) <= COLW * 3 + 4, "year line too wide: {line:?}");
         }
     }
 
